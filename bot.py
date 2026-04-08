@@ -7,7 +7,9 @@ import time
 import urllib.request
 import base64
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+BRT = timezone(timedelta(hours=-3))
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import (
@@ -415,7 +417,7 @@ def get_db_backup():
         cur.close()
         conn.close()
         return {
-            "backup_date": datetime.now().isoformat(),
+            "backup_date": datetime.now(BRT).isoformat(),
             "total_tickets": len(tickets),
             "tickets": tickets,
             "config": config
@@ -428,7 +430,7 @@ def get_db_backup():
 def send_backup_telegram(backup_data):
     """Send backup JSON file to ALL admin IDs via the support bot."""
     try:
-        now = datetime.now().strftime("%Y%m%d_%H%M")
+        now = datetime.now(BRT).strftime("%Y%m%d_%H%M")
         filename = f"backup_trocasdolk_{now}.json"
         json_bytes = json.dumps(backup_data, indent=2, ensure_ascii=False).encode("utf-8")
 
@@ -439,7 +441,7 @@ def send_backup_telegram(backup_data):
 
         caption = (
             f"💾 BACKUP SUPORTE\n"
-            f"📅 {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
+            f"📅 {datetime.now(BRT).strftime('%d/%m/%Y %H:%M')}\n\n"
             f"📊 Total: {total} tickets\n"
             f"⏳ Pendentes: {pendentes}\n"
             f"✅ Resolvidos: {resolvidos}\n"
@@ -479,7 +481,7 @@ def send_backup_github(backup_data):
         logger.warning("[BACKUP] GITHUB_TOKEN not set, skipping GitHub backup")
         return False
     try:
-        now = datetime.now().strftime("%Y%m%d_%H%M")
+        now = datetime.now(BRT).strftime("%Y%m%d_%H%M")
         filename = f"backups/backup_{now}.json"
         json_str = json.dumps(backup_data, indent=2, ensure_ascii=False)
         content_b64 = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")

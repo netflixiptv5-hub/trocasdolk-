@@ -1,7 +1,9 @@
 import os
 import json
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+BRT = timezone(timedelta(hours=-3))
 from collections import defaultdict
 from functools import wraps
 from dotenv import load_dotenv
@@ -143,7 +145,7 @@ def dashboard():
     completa_caida = [t for t in pendentes_raw if t["type"] == "completa_caida"]
 
     # Detect duplicate logins - same email from different users in last 7 days
-    seven_days_ago = datetime.now() - timedelta(days=7)
+    seven_days_ago = datetime.now(BRT) - timedelta(days=7)
     cur.execute(
         "SELECT id, email, telegram_chat_id, telegram_name, telegram_username, created_at "
         "FROM tickets WHERE created_at >= %s ORDER BY created_at ASC",
@@ -238,7 +240,7 @@ def trocar_senha(ticket_id):
         return jsonify({"error": "Ticket não encontrado"}), 404
     ticket = dict(zip(cols, row))
 
-    now = datetime.now()
+    now = datetime.now(BRT)
     cur.execute("""
         UPDATE tickets SET status = 'resolvido', resolved_action = 'trocar_senha',
         resolved_data = %s, resolved_at = %s WHERE id = %s
@@ -279,7 +281,7 @@ def trocar_email(ticket_id):
         return jsonify({"error": "Ticket não encontrado"}), 404
     ticket = dict(zip(cols, row))
 
-    now = datetime.now()
+    now = datetime.now(BRT)
     cur.execute("""
         UPDATE tickets SET status = 'resolvido', resolved_action = 'trocar_email',
         resolved_data = %s, resolved_at = %s WHERE id = %s
@@ -314,7 +316,7 @@ def problema_resolvido(ticket_id):
         return jsonify({"error": "Ticket não encontrado"}), 404
     ticket = dict(zip(cols, row))
 
-    now = datetime.now()
+    now = datetime.now(BRT)
     cur.execute("""
         UPDATE tickets SET status = 'resolvido', resolved_action = 'resolvido',
         resolved_at = %s WHERE id = %s
@@ -353,7 +355,7 @@ def reprovar(ticket_id):
         return jsonify({"error": "Ticket não encontrado"}), 404
     ticket = dict(zip(cols, row))
 
-    now = datetime.now()
+    now = datetime.now(BRT)
     cur.execute("""
         UPDATE tickets SET status = 'reprovado', resolved_action = 'reprovado',
         resolved_data = %s, resolved_at = %s WHERE id = %s
@@ -456,7 +458,7 @@ def create_ticket():
 
     conn = get_db()
     cur = conn.cursor()
-    now = datetime.now()
+    now = datetime.now(BRT)
     cur.execute("""
         INSERT INTO tickets (type, email, senha, telegram_chat_id, telegram_username, telegram_name, created_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
