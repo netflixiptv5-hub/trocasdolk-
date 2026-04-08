@@ -742,8 +742,8 @@ def main():
     )
     app.add_handler(spam_conv)
 
-    # Handler de cancelar ticket (fora do conversation pra funcionar sempre)
-    app.add_handler(CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"))
+    # Handler de cancelar ticket — group=-1 pra ter prioridade sobre ConversationHandlers
+    app.add_handler(CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"), group=-1)
 
     conv_handler = ConversationHandler(
         entry_points=[
