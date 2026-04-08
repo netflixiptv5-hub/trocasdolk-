@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Trocas Dolk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Theme Variables */
+        :root {
+            --bg-body: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #0a0a0f;
+            --border: #1e293b;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #475569;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --accent-bg: rgba(99,102,241,0.15);
+            --hover-bg: #1a1a2e;
+            --modal-overlay: rgba(0,0,0,0.7);
+            --cancel-bg: #1e293b;
+            --cancel-hover: #334155;
+        }
+        [data-theme="light"] {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+            --accent-light: #4f46e5;
+            --accent-bg: rgba(99,102,241,0.1);
+            --hover-bg: #f1f5f9;
+            --modal-overlay: rgba(0,0,0,0.4);
+            --cancel-bg: #e2e8f0;
+            --cancel-hover: #cbd5e1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        .layout { display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .sidebar .logo { font-size: 20px; font-weight: 800; padding: 0 8px; margin-bottom: 32px; }
+        .sidebar .logo span { color: var(--accent); }
+        .sidebar nav { flex: 1; }
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+        .sidebar a:hover, .sidebar a.active { background: var(--hover-bg); color: var(--text-primary); }
+        .sidebar a.active { background: var(--accent-bg); color: var(--accent-light); }
+        .sidebar .logout { margin-top: auto; color: #ef4444 !important; }
+        .sidebar .logout:hover { background: rgba(239,68,68,0.1) !important; }
+        
+        /* Theme Toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 12px;
+            color: var(--text-secondary);
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            font-family: inherit;
+        }
+        .theme-toggle:hover { background: var(--hover-bg); color: var(--text-primary); }
+        
+        /* Main */
+        .main { margin-left: 240px; flex: 1; padding: 32px; }
+        
+        /* Stats */
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .stat-card .label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .value { font-size: 32px; font-weight: 800; margin-top: 4px; }
+        .stat-card.pending .value { color: #f59e0b; }
+        .stat-card.resolved .value { color: #22c55e; }
+        .stat-card.rejected .value { color: #ef4444; }
+        
+        /* Section */
+        .section { margin-bottom: 32px; }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title .badge {
+            background: var(--accent-bg);
+            color: var(--accent-light);
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        /* Ticket Card */
+        .tickets-grid { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 600px; }
+        .duplicate-warning {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #f59e0b;
+            line-height: 1.5;
+        }
+        .duplicate-warning .dw-title {
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .duplicate-warning .dw-title .triangle {
+            font-size: 18px;
+        }
+        .duplicate-warning .dw-detail {
+            color: rgba(245, 158, 11, 0.85);
+            font-size: 11px;
+        }
+        .ticket-card.has-duplicate {
+            border-color: rgba(245, 158, 11, 0.5) !important;
+        }
+        .ticket-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s, background 0.3s;
+        }
+        .ticket-card:hover { border-color: var(--accent); }
+        .ticket-info { margin-bottom: 16px; }
+        .ticket-info .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        .ticket-info .row .label { color: var(--text-secondary); }
+        .ticket-info .row .value {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+        .ticket-info .row .value.email { color: var(--accent-light); }
+        .ticket-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btn {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .btn-senha { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .btn-senha:hover { background: rgba(99,102,241,0.3); }
+        .btn-email { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .btn-email:hover { background: rgba(34,197,94,0.3); }
+        .btn-resolvido { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .btn-resolvido:hover { background: rgba(245,158,11,0.3); }
+        .btn-reprovar { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .btn-reprovar:hover { background: rgba(239,68,68,0.3); }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--modal-overlay);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 460px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+        .modal .form-group { margin-bottom: 16px; }
+        .modal label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .modal input, .modal textarea {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: background 0.3s, border-color 0.3s, color 0.3s;
+        }
+        .modal input:focus, .modal textarea:focus { outline: none; border-color: var(--accent); }
+        .modal input[readonly] { color: var(--text-secondary); cursor: not-allowed; }
+        .modal textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+        .modal .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
+        .modal .btn-confirm {
+            flex: 1;
+            padding: 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .modal .btn-confirm:hover { background: var(--accent-light); }
+        .modal .btn-confirm.green { background: #22c55e; }
+        .modal .btn-confirm.green:hover { background: #16a34a; }
+        .modal .btn-confirm.red { background: #ef4444; }
+        .modal .btn-confirm.red:hover { background: #dc2626; }
+        .modal .btn-confirm.yellow { background: #f59e0b; }
+        .modal .btn-confirm.yellow:hover { background: #d97706; }
+        .modal .btn-cancel {
+            padding: 12px 24px;
+            background: var(--cancel-bg);
+            color: var(--text-secondary);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .modal .btn-cancel:hover { background: var(--cancel-hover); color: var(--text-primary); }
+        .modal .preview-msg {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: #22c55e; color: white; }
+        .toast.error { background: #ef4444; color: white; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px; }
+            .stats { grid-template-columns: 1fr; }
+            .tickets-grid { grid-template-columns: 1fr; }
+            .ticket-actions { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">🔐 Trocas <span>Dolk</span></div>
+            <nav>
+                <a href="/" class="active">📊 Dashboard</a>
+                <a href="/historico">📜 Histórico</a>
+            </nav>
+            <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙 Tema Escuro</button>
+            <a href="/logout" class="logout">🚪 Sair</a>
+        </aside>
+        
+        <div class="main">
+            <!-- Stats -->
+            <div class="stats">
+                <div class="stat-card pending">
+                    <div class="label">Pendentes</div>
+                    <div class="value">{{ total_pendentes }}</div>
+                </div>
+                <div class="stat-card resolved">
+                    <div class="label">Resolvidos</div>
+                    <div class="value">{{ total_resolvidos }}</div>
+                </div>
+                <div class="stat-card rejected">
+                    <div class="label">Reprovados</div>
+                    <div class="value">{{ total_reprovados }}</div>
+                </div>
+            </div>
+            
+            <!-- Redefinir Senha -->
+            <div class="section">
+                <div class="section-title">
+                    🔑 Redefinir Senha
+                    <span class="badge">{{ redefinir|length }}</span>
+                </div>
+                <div class="tickets-grid" id="grid-redefinir">
+                    {% for t in redefinir %}
+                    <div class="ticket-card {% if t.id in duplicate_tickets %}has-duplicate{% endif %}" id="ticket-{{ t.id }}">
+                        {% if t.id in duplicate_tickets %}
+                        <div class="duplicate-warning">
+                            <div class="dw-title"><span class="triangle">⚠️</span> CONTA POSSIVELMENTE DUPLICADA</div>
+                            {% for dup in duplicate_tickets[t.id] %}
+                            <div class="dw-detail">Enviada por {{ dup.name }}{% if dup.username %} (@{{ dup.username }}){% endif %} - {{ dup.date }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="ticket-info">
+                            <div class="row"><span class="label">Email :</span><span class="value email">{{ t.email }}</span></div>
+                            {% if t.senha %}<div class="row"><span class="label">Senha :</span><span class="value">{{ t.senha }}</span></div>{% endif %}
+                            <div class="row"><span class="label">Telegram :</span><span class="value">{{ t.telegram_name or 'N/A' }} {% if t.telegram_username %}(@{{ t.telegram_username }}){% endif %}</span></div>
+                            <div class="row"><span class="label">ID Telegram :</span><span class="value">{{ t.telegram_chat_id }}</span></div>
+                            <div class="row"><span class="label">Data :</span><span class="value">{{ t.created_at_display }}</span></div>
+                        </div>
+                        <div class="ticket-actions">
+                            <button class="btn btn-senha" onclick="openModal('senha', {{ t.id }}, '{{ t.email }}')">🔑 Trocar Senha</button>
+                            <button class="btn btn-email" onclick="openModal('email', {{ t.id }}, '{{ t.email }}')">📧 Trocar Email</button>
+                            <button class="btn btn-resolvido" onclick="openModal('resolvido', {{ t.id }}, '{{ t.email }}')">✅ Resolvido</button>
+                            <button class="btn btn-reprovar" onclick="openModal('reprovar', {{ t.id }}, '{{ t.email }}')">❌ Reprovar</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not redefinir %}
+                    <div class="empty-state"><div class="icon">✨</div>Nenhuma solicitação pendente</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Tela Caída -->
+            <div class="section">
+                <div class="section-title">
+                    📺 Contas Caída Tela
+                    <span class="badge">{{ tela_caida|length }}</span>
+                </div>
+                <div class="tickets-grid" id="grid-tela">
+                    {% for t in tela_caida %}
+                    <div class="ticket-card {% if t.id in duplicate_tickets %}has-duplicate{% endif %}" id="ticket-{{ t.id }}">
+                        {% if t.id in duplicate_tickets %}
+                        <div class="duplicate-warning">
+                            <div class="dw-title"><span class="triangle">⚠️</span> CONTA POSSIVELMENTE DUPLICADA</div>
+                            {% for dup in duplicate_tickets[t.id] %}
+                            <div class="dw-detail">Enviada por {{ dup.name }}{% if dup.username %} (@{{ dup.username }}){% endif %} - {{ dup.date }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="ticket-info">
+                            <div class="row"><span class="label">Email :</span><span class="value email">{{ t.email }}</span></div>
+                            {% if t.senha %}<div class="row"><span class="label">Senha :</span><span class="value">{{ t.senha }}</span></div>{% endif %}
+                            <div class="row"><span class="label">Telegram :</span><span class="value">{{ t.telegram_name or 'N/A' }} {% if t.telegram_username %}(@{{ t.telegram_username }}){% endif %}</span></div>
+                            <div class="row"><span class="label">ID Telegram :</span><span class="value">{{ t.telegram_chat_id }}</span></div>
+                            <div class="row"><span class="label">Data :</span><span class="value">{{ t.created_at_display }}</span></div>
+                        </div>
+                        <div class="ticket-actions">
+                            <button class="btn btn-senha" onclick="openModal('senha', {{ t.id }}, '{{ t.email }}')">🔑 Trocar Senha</button>
+                            <button class="btn btn-email" onclick="openModal('email', {{ t.id }}, '{{ t.email }}')">📧 Trocar Email</button>
+                            <button class="btn btn-resolvido" onclick="openModal('resolvido', {{ t.id }}, '{{ t.email }}')">✅ Resolvido</button>
+                            <button class="btn btn-reprovar" onclick="openModal('reprovar', {{ t.id }}, '{{ t.email }}')">❌ Reprovar</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not tela_caida %}
+                    <div class="empty-state"><div class="icon">✨</div>Nenhuma solicitação pendente</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Completa Caída -->
+            <div class="section">
+                <div class="section-title">
+                    💻 Contas Caída Completas
+                    <span class="badge">{{ completa_caida|length }}</span>
+                </div>
+                <div class="tickets-grid" id="grid-completa">
+                    {% for t in completa_caida %}
+                    <div class="ticket-card {% if t.id in duplicate_tickets %}has-duplicate{% endif %}" id="ticket-{{ t.id }}">
+                        {% if t.id in duplicate_tickets %}
+                        <div class="duplicate-warning">
+                            <div class="dw-title"><span class="triangle">⚠️</span> CONTA POSSIVELMENTE DUPLICADA</div>
+                            {% for dup in duplicate_tickets[t.id] %}
+                            <div class="dw-detail">Enviada por {{ dup.name }}{% if dup.username %} (@{{ dup.username }}){% endif %} - {{ dup.date }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="ticket-info">
+                            <div class="row"><span class="label">Email :</span><span class="value email">{{ t.email }}</span></div>
+                            {% if t.senha %}<div class="row"><span class="label">Senha :</span><span class="value">{{ t.senha }}</span></div>{% endif %}
+                            <div class="row"><span class="label">Telegram :</span><span class="value">{{ t.telegram_name or 'N/A' }} {% if t.telegram_username %}(@{{ t.telegram_username }}){% endif %}</span></div>
+                            <div class="row"><span class="label">ID Telegram :</span><span class="value">{{ t.telegram_chat_id }}</span></div>
+                            <div class="row"><span class="label">Data :</span><span class="value">{{ t.created_at_display }}</span></div>
+                        </div>
+                        <div class="ticket-actions">
+                            <button class="btn btn-senha" onclick="openModal('senha', {{ t.id }}, '{{ t.email }}')">🔑 Trocar Senha</button>
+                            <button class="btn btn-email" onclick="openModal('email', {{ t.id }}, '{{ t.email }}')">📧 Trocar Email</button>
+                            <button class="btn btn-resolvido" onclick="openModal('resolvido', {{ t.id }}, '{{ t.email }}')">✅ Resolvido</button>
+                            <button class="btn btn-reprovar" onclick="openModal('reprovar', {{ t.id }}, '{{ t.email }}')">❌ Reprovar</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not completa_caida %}
+                    <div class="empty-state"><div class="icon">✨</div>Nenhuma solicitação pendente</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Trocar Senha -->
+    <div class="modal-overlay" id="modal-senha">
+        <div class="modal">
+            <h3>🔑 Trocar Senha</h3>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="text" id="senha-email" readonly>
+            </div>
+            <div class="form-group">
+                <label>Nova Senha</label>
+                <input type="text" id="senha-nova" placeholder="Digite a nova senha">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('senha')">Cancelar</button>
+                <button class="btn-confirm" onclick="submitSenha()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Trocar Email -->
+    <div class="modal-overlay" id="modal-email">
+        <div class="modal">
+            <h3>📧 Trocar Email</h3>
+            <div class="form-group">
+                <label>Email Antigo</label>
+                <input type="text" id="email-antigo" readonly>
+            </div>
+            <div class="form-group">
+                <label>Novo Email e Senha</label>
+                <input type="text" id="email-novo-combo" placeholder="email:senha  ou  email senha  ou  email>senha">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('email')">Cancelar</button>
+                <button class="btn-confirm green" onclick="submitEmail()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Problema Resolvido -->
+    <div class="modal-overlay" id="modal-resolvido">
+        <div class="modal">
+            <h3>✅ Problema Resolvido</h3>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="text" id="resolvido-email" readonly>
+            </div>
+            <div class="form-group">
+                <label>Mensagem que será enviada</label>
+                <div class="preview-msg">
+                    ✅ Sua solicitação foi resolvida, volte a assistir agora mesmo! ❤️
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('resolvido')">Cancelar</button>
+                <button class="btn-confirm yellow" onclick="submitResolvido()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Reprovar -->
+    <div class="modal-overlay" id="modal-reprovar">
+        <div class="modal">
+            <h3>❌ Reprovar Solicitação</h3>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="text" id="reprovar-email" readonly>
+            </div>
+            <div class="form-group">
+                <label>Motivo da Reprovação</label>
+                <textarea id="reprovar-motivo" placeholder="Digite o motivo da reprovação"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('reprovar')">Cancelar</button>
+                <button class="btn-confirm red" onclick="submitReprovar()">Reprovar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeBtn(next);
+        }
+        function updateThemeBtn(theme) {
+            const btn = document.getElementById('theme-btn');
+            btn.textContent = theme === 'light' ? '☀️ Tema Claro' : '🌙 Tema Escuro';
+        }
+        // Load saved theme
+        (function() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            updateThemeBtn(saved);
+        })();
+        
+        let currentTicketId = null;
+        
+        function openModal(type, ticketId, email) {
+            currentTicketId = ticketId;
+            if (type === 'senha') {
+                document.getElementById('senha-email').value = email;
+                document.getElementById('senha-nova').value = '';
+                document.getElementById('modal-senha').classList.add('active');
+                document.getElementById('senha-nova').focus();
+            } else if (type === 'email') {
+                document.getElementById('email-antigo').value = email;
+                document.getElementById('email-novo-combo').value = '';
+                document.getElementById('modal-email').classList.add('active');
+                document.getElementById('email-novo-combo').focus();
+            } else if (type === 'resolvido') {
+                document.getElementById('resolvido-email').value = email;
+                document.getElementById('modal-resolvido').classList.add('active');
+            } else if (type === 'reprovar') {
+                document.getElementById('reprovar-email').value = email;
+                document.getElementById('reprovar-motivo').value = '';
+                document.getElementById('modal-reprovar').classList.add('active');
+                document.getElementById('reprovar-motivo').focus();
+            }
+        }
+        
+        function closeModal(type) {
+            document.getElementById('modal-' + type).classList.remove('active');
+            currentTicketId = null;
+        }
+        
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (e.target === el) {
+                    el.classList.remove('active');
+                    currentTicketId = null;
+                }
+            });
+        });
+        
+        // Close modal on ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(el => {
+                    el.classList.remove('active');
+                });
+                currentTicketId = null;
+            }
+        });
+        
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        async function apiCall(url, data) {
+            try {
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return await resp.json();
+            } catch (e) {
+                return { error: e.message };
+            }
+        }
+        
+        function removeTicketCard(id) {
+            const card = document.getElementById('ticket-' + id);
+            if (card) {
+                card.style.transition = 'all 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(() => card.remove(), 300);
+            }
+        }
+        
+        async function submitSenha() {
+            const novaSenha = document.getElementById('senha-nova').value.trim();
+            if (!novaSenha) { showToast('Digite a nova senha!', 'error'); return; }
+            
+            const result = await apiCall('/api/ticket/' + currentTicketId + '/trocar-senha', { nova_senha: novaSenha });
+            if (result.success) {
+                closeModal('senha');
+                removeTicketCard(currentTicketId);
+                showToast('Senha trocada e cliente notificado!', 'success');
+            } else {
+                showToast(result.error || 'Erro ao processar', 'error');
+            }
+        }
+        
+        async function submitEmail() {
+            let combo = document.getElementById('email-novo-combo').value.trim();
+            if (!combo) { showToast('Digite o novo email e senha!', 'error'); return; }
+            
+            // Aceita qualquer separador: : > espaço
+            let parts;
+            if (combo.includes(':')) {
+                parts = [combo.split(':')[0], combo.split(':').slice(1).join(':')];
+            } else if (combo.includes('>')) {
+                parts = [combo.split('>')[0], combo.split('>').slice(1).join('>')];
+            } else if (combo.includes(' ')) {
+                parts = [combo.split(' ')[0], combo.split(' ').slice(1).join(' ')];
+            } else {
+                showToast('Digite email e senha separados por : ou espaço ou >', 'error');
+                return;
+            }
+            
+            const novoEmail = parts[0].trim();
+            const novaSenha = parts[1].trim();
+            if (!novoEmail || !novaSenha) { showToast('Digite email e senha!', 'error'); return; }
+            
+            const result = await apiCall('/api/ticket/' + currentTicketId + '/trocar-email', { novo_email: novoEmail, nova_senha: novaSenha });
+            if (result.success) {
+                closeModal('email');
+                removeTicketCard(currentTicketId);
+                showToast('Email trocado e cliente notificado!', 'success');
+            } else {
+                showToast(result.error || 'Erro ao processar', 'error');
+            }
+        }
+        
+        async function submitResolvido() {
+            const result = await apiCall('/api/ticket/' + currentTicketId + '/resolvido', {});
+            if (result.success) {
+                closeModal('resolvido');
+                removeTicketCard(currentTicketId);
+                showToast('Resolvido e cliente notificado!', 'success');
+            } else {
+                showToast(result.error || 'Erro ao processar', 'error');
+            }
+        }
+        
+        async function submitReprovar() {
+            const motivo = document.getElementById('reprovar-motivo').value.trim();
+            if (!motivo) { showToast('Digite o motivo!', 'error'); return; }
+            
+            const result = await apiCall('/api/ticket/' + currentTicketId + '/reprovar', { motivo: motivo });
+            if (result.success) {
+                closeModal('reprovar');
+                removeTicketCard(currentTicketId);
+                showToast('Reprovado e cliente notificado!', 'success');
+            } else {
+                showToast(result.error || 'Erro ao processar', 'error');
+            }
+        }
+        
+        // ============================================
+        // TEMPO REAL — busca tickets novos a cada 3s
+        // ============================================
+        let lastTicketIds = new Set();
+        
+        // Pega IDs atuais na página
+        document.querySelectorAll('[id^="ticket-"]').forEach(el => {
+            lastTicketIds.add(el.id.replace('ticket-', ''));
+        });
+        
+        function buildTicketCard(t) {
+            const senhaRow = t.senha ? `<div class="row"><span class="label">Senha :</span><span class="value">${t.senha}</span></div>` : '';
+            const username = t.telegram_username ? `(@${t.telegram_username})` : '';
+            return `
+                <div class="ticket-card" id="ticket-${t.id}" style="animation: fadeIn 0.3s ease">
+                    <div class="ticket-info">
+                        <div class="row"><span class="label">Email :</span><span class="value email">${t.email}</span></div>
+                        ${senhaRow}
+                        <div class="row"><span class="label">Telegram :</span><span class="value">${t.telegram_name || 'N/A'} ${username}</span></div>
+                        <div class="row"><span class="label">ID Telegram :</span><span class="value">${t.telegram_chat_id || 'N/A'}</span></div>
+                        <div class="row"><span class="label">Data :</span><span class="value">${t.created_at}</span></div>
+                    </div>
+                    <div class="ticket-actions">
+                        <button class="btn btn-senha" onclick="openModal('senha', ${t.id}, '${t.email}')">🔑 Trocar Senha</button>
+                        <button class="btn btn-email" onclick="openModal('email', ${t.id}, '${t.email}')">📧 Trocar Email</button>
+                        <button class="btn btn-resolvido" onclick="openModal('resolvido', ${t.id}, '${t.email}')">✅ Resolvido</button>
+                        <button class="btn btn-reprovar" onclick="openModal('reprovar', ${t.id}, '${t.email}')">❌ Reprovar</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function refreshTickets() {
+            try {
+                const resp = await fetch('/api/tickets/pendentes');
+                const data = await resp.json();
+                
+                // Atualiza contadores
+                document.querySelector('.stat-card.pending .value').textContent = data.total_pendentes;
+                document.querySelector('.stat-card.resolved .value').textContent = data.total_resolvidos;
+                document.querySelector('.stat-card.rejected .value').textContent = data.total_reprovados;
+                
+                // Separa por tipo
+                const tipos = {
+                    'redefinir_senha': { tickets: [], gridId: 'grid-redefinir' },
+                    'tela_caida': { tickets: [], gridId: 'grid-tela' },
+                    'completa_caida': { tickets: [], gridId: 'grid-completa' }
+                };
+                
+                const newIds = new Set();
+                data.tickets.forEach(t => {
+                    newIds.add(String(t.id));
+                    if (tipos[t.type]) {
+                        tipos[t.type].tickets.push(t);
+                    }
+                });
+                
+                // Remove tickets que foram resolvidos
+                document.querySelectorAll('[id^="ticket-"]').forEach(el => {
+                    const id = el.id.replace('ticket-', '');
+                    if (!newIds.has(id)) {
+                        el.style.transition = 'all 0.3s';
+                        el.style.opacity = '0';
+                        el.style.transform = 'scale(0.95)';
+                        setTimeout(() => el.remove(), 300);
+                    }
+                });
+                
+                // Adiciona tickets novos
+                for (const [type, info] of Object.entries(tipos)) {
+                    const grid = document.getElementById(info.gridId);
+                    if (!grid) continue;
+                    
+                    // Atualiza badge
+                    const badge = grid.parentElement.querySelector('.badge');
+                    if (badge) badge.textContent = info.tickets.length;
+                    
+                    info.tickets.forEach(t => {
+                        if (!lastTicketIds.has(String(t.id)) && !document.getElementById('ticket-' + t.id)) {
+                            // Novo ticket — adiciona
+                            const empty = grid.querySelector('.empty-state');
+                            if (empty) empty.remove();
+                            grid.insertAdjacentHTML('beforeend', buildTicketCard(t));
+                        }
+                    });
+                    
+                    // Se ficou vazio, mostra empty state
+                    if (info.tickets.length === 0 && !grid.querySelector('.empty-state')) {
+                        grid.innerHTML = '<div class="empty-state"><div class="icon">✨</div>Nenhuma solicitação pendente</div>';
+                    }
+                }
+                
+                lastTicketIds = newIds;
+            } catch (e) {
+                // Silently fail
+            }
+        }
+        
+        // Busca a cada 3 segundos
+        setInterval(refreshTickets, 3000);
+    </script>
+</body>
+</html>

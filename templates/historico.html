@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico - Trocas Dolk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #0a0a0f;
+            --border: #1e293b;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #475569;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --accent-bg: rgba(99,102,241,0.15);
+            --hover-bg: #1a1a2e;
+        }
+        [data-theme="light"] {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+            --accent-light: #4f46e5;
+            --accent-bg: rgba(99,102,241,0.1);
+            --hover-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 240px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .sidebar .logo { font-size: 20px; font-weight: 800; padding: 0 8px; margin-bottom: 32px; }
+        .sidebar .logo span { color: var(--accent); }
+        .sidebar nav { flex: 1; }
+        .sidebar a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 12px; color: var(--text-secondary); text-decoration: none;
+            border-radius: 10px; font-weight: 500; font-size: 14px;
+            margin-bottom: 4px; transition: all 0.2s;
+        }
+        .sidebar a:hover, .sidebar a.active { background: var(--hover-bg); color: var(--text-primary); }
+        .sidebar a.active { background: var(--accent-bg); color: var(--accent-light); }
+        .sidebar .logout { margin-top: auto; color: #ef4444 !important; }
+        .sidebar .logout:hover { background: rgba(239,68,68,0.1) !important; }
+        .theme-toggle {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 12px; color: var(--text-secondary);
+            border-radius: 10px; font-weight: 500; font-size: 14px;
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+            border: none; background: none; width: 100%; font-family: inherit;
+        }
+        .theme-toggle:hover { background: var(--hover-bg); color: var(--text-primary); }
+        .main { margin-left: 240px; flex: 1; padding: 32px; }
+        h1 { font-size: 24px; font-weight: 800; margin-bottom: 24px; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: var(--hover-bg); }
+        .email-cell { font-family: 'JetBrains Mono', monospace; color: var(--accent-light); font-size: 12px; }
+        .badge-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-resolvido { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .badge-reprovado { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .badge-type {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--accent-bg);
+            color: var(--accent-light);
+        }
+        .empty-state { text-align: center; padding: 60px; color: var(--text-muted); }
+        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px; }
+            table { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">🔐 Trocas <span>Dolk</span></div>
+            <nav>
+                <a href="/">📊 Dashboard</a>
+                <a href="/historico" class="active">📜 Histórico</a>
+            </nav>
+            <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙 Tema Escuro</button>
+            <a href="/logout" class="logout">🚪 Sair</a>
+        </aside>
+        
+        <div class="main">
+            <h1>📜 Histórico de Solicitações</h1>
+            
+            {% if tickets %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Email</th>
+                        <th>Cliente</th>
+                        <th>Telegram ID</th>
+                        <th>Ação</th>
+                        <th>Status</th>
+                        <th>Data Resolução</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tickets %}
+                    <tr>
+                        <td>#{{ t.id }}</td>
+                        <td>
+                            {% if t.type == 'redefinir_senha' %}
+                            <span class="badge-type">🔑 Redefinir Senha</span>
+                            {% elif t.type == 'tela_caida' %}
+                            <span class="badge-type">📺 Tela Caída</span>
+                            {% else %}
+                            <span class="badge-type">💻 Caída Completa</span>
+                            {% endif %}
+                        </td>
+                        <td class="email-cell">{{ t.email }}</td>
+                        <td>{{ t.telegram_name or 'N/A' }}{% if t.telegram_username %} (@{{ t.telegram_username }}){% endif %}</td>
+                        <td class="email-cell">{{ t.telegram_chat_id or 'N/A' }}</td>
+                        <td>
+                            {% if t.resolved_action == 'trocar_senha' %}Trocou Senha
+                            {% elif t.resolved_action == 'trocar_email' %}Trocou Email
+                            {% elif t.resolved_action == 'resolvido' %}Resolvido
+                            {% elif t.resolved_action == 'reprovado' %}Reprovado
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if t.status == 'resolvido' %}
+                            <span class="badge-status badge-resolvido">✅ Resolvido</span>
+                            {% else %}
+                            <span class="badge-status badge-reprovado">❌ Reprovado</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ t.resolved_at_display or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>Nenhum histórico ainda</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeBtn(next);
+        }
+        function updateThemeBtn(theme) {
+            const btn = document.getElementById('theme-btn');
+            btn.textContent = theme === 'light' ? '☀️ Tema Claro' : '🌙 Tema Escuro';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            updateThemeBtn(saved);
+        })();
+    </script>
+</body>
+</html>
