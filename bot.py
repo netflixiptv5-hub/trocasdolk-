@@ -83,40 +83,68 @@ ESCOLHER_TIPO, AGUARDANDO_EMAIL, AGUARDANDO_EMAIL_SENHA = range(3)
 
 def create_ticket_api(data):
     """Send ticket to Flask API. Returns dict with success + ticket_id."""
-    url = f"{API_URL}/api/ticket"
+    # Tenta URL interna primeiro (Railway), depois pública
+    urls = [f"{API_URL}/api/ticket"]
+    # Se estiver no Railway, tenta a URL interna tb
+    internal = os.getenv("RAILWAY_PRIVATE_DOMAIN")
+    if internal:
+        port = os.getenv("PORT", "5000")
+        urls.insert(0, f"http://web.railway.internal:{port}/api/ticket")
+
     payload = json.dumps(data).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-    try:
-        resp = urllib.request.urlopen(req, timeout=10)
-        return json.loads(resp.read())
-    except Exception as e:
-        logger.error(f"Erro ao criar ticket: {e}")
-        return None
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            resp = urllib.request.urlopen(req, timeout=10)
+            result = json.loads(resp.read())
+            logger.info(f"[TICKET] Criado OK via {url}: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"[TICKET] Erro em {url}: {e}")
+            continue
+    return None
 
 
 def cancel_ticket_api(ticket_id, chat_id):
     """Cancel (delete) a pending ticket via API."""
-    url = f"{API_URL}/api/ticket/{ticket_id}/cancelar"
+    urls = [f"{API_URL}/api/ticket/{ticket_id}/cancelar"]
+    internal = os.getenv("RAILWAY_PRIVATE_DOMAIN")
+    if internal:
+        port = os.getenv("PORT", "5000")
+        urls.insert(0, f"http://web.railway.internal:{port}/api/ticket/{ticket_id}/cancelar")
+
     payload = json.dumps({"chat_id": str(chat_id)}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        resp = urllib.request.urlopen(req, timeout=10)
-        return json.loads(resp.read())
-    except Exception as e:
-        logger.error(f"Erro ao cancelar ticket: {e}")
-        return None
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+            resp = urllib.request.urlopen(req, timeout=10)
+            result = json.loads(resp.read())
+            logger.info(f"[TICKET] Cancelado OK via {url}: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"[TICKET] Erro cancel em {url}: {e}")
+            continue
+    return None
 
 
 def get_all_chat_ids():
     """Get all unique chat IDs via API."""
-    try:
-        req = urllib.request.Request(f"{API_URL}/api/chat-ids", method="GET")
-        resp = urllib.request.urlopen(req, timeout=10)
-        data = json.loads(resp.read())
-        return data.get("chat_ids", [])
-    except Exception as e:
-        logger.error(f"[SPAM] Erro ao buscar chat_ids: {e}")
-        return []
+    urls = [f"{API_URL}/api/chat-ids"]
+    internal = os.getenv("RAILWAY_PRIVATE_DOMAIN")
+    if internal:
+        port = os.getenv("PORT", "5000")
+        urls.insert(0, f"http://web.railway.internal:{port}/api/chat-ids")
+
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, method="GET")
+            resp = urllib.request.urlopen(req, timeout=10)
+            data = json.loads(resp.read())
+            return data.get("chat_ids", [])
+        except Exception as e:
+            logger.error(f"[SPAM] Erro em {url}: {e}")
+            continue
+    return []
 
 
 def extrair_email_senha(texto):
