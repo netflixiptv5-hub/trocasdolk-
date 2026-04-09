@@ -445,6 +445,30 @@ def cancelar_ticket(ticket_id):
     return jsonify({"success": True})
 
 
+@app.route("/api/ticket/ultimo/<chat_id>/cancelar", methods=["POST"])
+def cancelar_ultimo_ticket(chat_id):
+    """Cancela o ticket pendente mais recente do chat_id (criado nos últimos 5 min)."""
+    conn = get_db()
+    cur = conn.cursor()
+    cinco_min = datetime.now(BRT) - timedelta(minutes=5)
+    cur.execute(
+        "SELECT id FROM tickets WHERE telegram_chat_id = %s AND status = 'pendente' AND created_at >= %s ORDER BY id DESC LIMIT 1",
+        (str(chat_id), cinco_min)
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        conn.close()
+        return jsonify({"error": "Nenhum ticket pendente nos últimos 5 minutos"}), 404
+
+    ticket_id = row[0]
+    cur.execute("DELETE FROM tickets WHERE id = %s", (ticket_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"success": True, "ticket_id": ticket_id})
+
+
 @app.route("/api/ticket", methods=["POST"])
 def create_ticket():
     data = request.get_json()

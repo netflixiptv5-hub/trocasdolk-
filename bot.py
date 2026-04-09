@@ -78,7 +78,7 @@ def load_maintenance_from_db():
 
 
 # Conversation states
-ESCOLHER_TIPO, AGUARDANDO_EMAIL, AGUARDANDO_EMAIL_SENHA, TICKET_CRIADO = range(4)
+ESCOLHER_TIPO, AGUARDANDO_EMAIL, AGUARDANDO_EMAIL_SENHA = range(3)
 
 
 def create_ticket_api(data):
@@ -105,24 +105,23 @@ def create_ticket_api(data):
     return None
 
 
-def cancel_ticket_api(ticket_id, chat_id):
-    """Cancel (delete) a pending ticket via API."""
-    urls = [f"{API_URL}/api/ticket/{ticket_id}/cancelar"]
+def cancel_last_ticket_api(chat_id):
+    """Cancel the most recent pending ticket (last 5 min) for this chat_id."""
+    urls = [f"{API_URL}/api/ticket/ultimo/{chat_id}/cancelar"]
     internal = os.getenv("RAILWAY_PRIVATE_DOMAIN")
     if internal:
         port = os.getenv("PORT", "5000")
-        urls.insert(0, f"http://web.railway.internal:{port}/api/ticket/{ticket_id}/cancelar")
+        urls.insert(0, f"http://web.railway.internal:{port}/api/ticket/ultimo/{chat_id}/cancelar")
 
-    payload = json.dumps({"chat_id": str(chat_id)}).encode("utf-8")
     for url in urls:
         try:
-            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+            req = urllib.request.Request(url, data=b"", headers={"Content-Type": "application/json"}, method="POST")
             resp = urllib.request.urlopen(req, timeout=10)
             result = json.loads(resp.read())
-            logger.info(f"[TICKET] Cancelado OK via {url}: {result}")
+            logger.info(f"[TICKET] Cancelado ultimo via {url}: {result}")
             return result
         except Exception as e:
-            logger.error(f"[TICKET] Erro cancel em {url}: {e}")
+            logger.error(f"[TICKET] Erro cancel ultimo em {url}: {e}")
             continue
     return None
 
@@ -275,34 +274,22 @@ async def receber_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     result = create_ticket_api(data)
     if result and result.get("success"):
-        ticket_id = result.get("ticket_id")
-        keyboard = [
-            [InlineKeyboardButton("❌ CANCELAR SUPORTE", callback_data=f"cancelar_ticket_{ticket_id}")],
-            [InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]
-        ]
         senha_info = f"\n🔑 Senha: `{senha}`" if senha else ""
-        msg = await update.message.reply_text(
+        keyboard = [[InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]]
+        await update.message.reply_text(
             "✅ *Solicitação Enviada!*\n\n"
             f"📧 Email: `{email}`{senha_info}\n📋 Tipo: Redefinir Senha\n\n"
             "⏳ Aguarde, nossa equipe irá resolver e você receberá uma resposta aqui!\n\n"
-            "⚠️ _Você tem 5 minutos para cancelar esta solicitação._",
+            "💡 _Se quiser cancelar, digite /cancelar em até 5 minutos._",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-        # Agendar remoção do botão cancelar após 5 minutos
-        context.job_queue.run_once(
-            remove_cancel_button, 300,
-            data={"chat_id": msg.chat_id, "message_id": msg.message_id,
-                  "email": email, "senha_info": senha_info, "tipo_nome": "Redefinir Senha"},
-            name=f"cancel_expire_{ticket_id}"
-        )
-        return TICKET_CRIADO
     else:
         keyboard = [[InlineKeyboardButton("🔄 Tentar Novamente", callback_data="voltar_menu")]]
         await update.message.reply_text(
             "❌ Erro ao enviar solicitação. Tente novamente.",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-        return ConversationHandler.END
+    return ConversationHandler.END
 
 
 async def receber_email_senha(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -341,35 +328,23 @@ async def receber_email_senha(update: Update, context: ContextTypes.DEFAULT_TYPE
     }
     result = create_ticket_api(data)
     if result and result.get("success"):
-        ticket_id = result.get("ticket_id")
         tipo_nome = nomes.get(tipo, tipo)
-        keyboard = [
-            [InlineKeyboardButton("❌ CANCELAR SUPORTE", callback_data=f"cancelar_ticket_{ticket_id}")],
-            [InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]
-        ]
-        msg = await update.message.reply_text(
+        keyboard = [[InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]]
+        await update.message.reply_text(
             "✅ *Solicitação Enviada!*\n\n"
             f"📧 Email: `{email}`\n🔑 Senha: `{senha}`\n"
             f"📋 Tipo: {tipo_nome}\n\n"
             "⏳ Aguarde, nossa equipe irá resolver e você receberá uma resposta aqui!\n\n"
-            "⚠️ _Você tem 5 minutos para cancelar esta solicitação._",
+            "💡 _Se quiser cancelar, digite /cancelar em até 5 minutos._",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-        # Agendar remoção do botão cancelar após 5 minutos
-        context.job_queue.run_once(
-            remove_cancel_button, 300,
-            data={"chat_id": msg.chat_id, "message_id": msg.message_id,
-                  "email": email, "senha_info": f"\n🔑 Senha: `{senha}`", "tipo_nome": tipo_nome},
-            name=f"cancel_expire_{ticket_id}"
-        )
-        return TICKET_CRIADO
     else:
         keyboard = [[InlineKeyboardButton("🔄 Tentar Novamente", callback_data="voltar_menu")]]
         await update.message.reply_text(
             "❌ Erro ao enviar solicitação. Tente novamente.",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-        return ConversationHandler.END
+    return ConversationHandler.END
 
 
 async def voltar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -382,8 +357,26 @@ async def voltar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela a conversa ativa E tenta cancelar o último ticket pendente (5 min)."""
+    chat_id = update.message.chat_id
+    result = cancel_last_ticket_api(chat_id)
+
     keyboard = [[InlineKeyboardButton("🔄 Abrir Suporte", callback_data="voltar_menu")]]
-    await update.message.reply_text("❌ Cancelado.", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    if result and result.get("success"):
+        await update.message.reply_text(
+            "🗑️ *Solicitação Cancelada!*\n\n"
+            "Seu último suporte foi cancelado com sucesso.\n"
+            "Caso precise, abra um novo suporte.",
+            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            "⚠️ *Nenhum suporte para cancelar.*\n\n"
+            "Não há ticket pendente nos últimos 5 minutos.\n"
+            "O ticket pode já ter sido resolvido ou expirou o prazo.",
+            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
+        )
     return ConversationHandler.END
 
 
@@ -589,70 +582,7 @@ def backup_loop():
         time.sleep(600)  # 10 minutos
 
 
-# ============================================
-# CANCELAR TICKET (botão 5 min)
-# ============================================
-async def remove_cancel_button(context: ContextTypes.DEFAULT_TYPE):
-    """Remove o botão de cancelar após 5 minutos."""
-    job_data = context.job.data
-    chat_id = job_data["chat_id"]
-    message_id = job_data["message_id"]
-    email = job_data["email"]
-    senha_info = job_data.get("senha_info", "")
-    tipo_nome = job_data.get("tipo_nome", "")
 
-    keyboard = [[InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]]
-    try:
-        await context.bot.edit_message_text(
-            chat_id=chat_id, message_id=message_id,
-            text=(
-                f"✅ *Solicitação Enviada!*\n\n"
-                f"📧 Email: `{email}`{senha_info}\n"
-                f"📋 Tipo: {tipo_nome}\n\n"
-                f"⏳ Aguarde, nossa equipe irá resolver e você receberá uma resposta aqui!"
-            ),
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.warning(f"[CANCEL] Erro ao remover botão: {e}")
-
-
-async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Usuário clicou no botão de cancelar suporte."""
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data  # cancelar_ticket_123
-    try:
-        ticket_id = int(data.split("_")[-1])
-    except:
-        await query.edit_message_text("❌ Erro ao cancelar.", parse_mode="Markdown")
-        return ConversationHandler.END
-
-    chat_id = query.message.chat_id
-    result = cancel_ticket_api(ticket_id, chat_id)
-
-    if result and result.get("success"):
-        # Cancelar o job de remover botão (se ainda não executou)
-        jobs = context.job_queue.get_jobs_by_name(f"cancel_expire_{ticket_id}")
-        for job in jobs:
-            job.schedule_removal()
-
-        keyboard = [[InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]]
-        await query.edit_message_text(
-            "🗑️ *Solicitação Cancelada!*\n\n"
-            "Seu suporte foi cancelado com sucesso.\n"
-            "Caso precise, abra um novo suporte.",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
-        )
-    else:
-        keyboard = [[InlineKeyboardButton("🔄 Novo Suporte", callback_data="voltar_menu")]]
-        await query.edit_message_text(
-            "⚠️ *Não foi possível cancelar.*\n\n"
-            "O ticket pode já ter sido resolvido ou expirou o prazo de 5 minutos.",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
-        )
-    return ConversationHandler.END
 
 
 # ============================================
@@ -780,27 +710,19 @@ def main():
         ],
         states={
             ESCOLHER_TIPO: [
-                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(tipo_escolhido, pattern="^(redefinir_senha|tela_caida|completa_caida)$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
             ],
             AGUARDANDO_EMAIL: [
-                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_email),
             ],
             AGUARDANDO_EMAIL_SENHA: [
-                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_email_senha),
             ],
-            TICKET_CRIADO: [
-                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
-                CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
-            ],
         },
         fallbacks=[
-            CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
             CommandHandler("cancelar", cancelar),
             CommandHandler("start", start),
             CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
@@ -809,10 +731,8 @@ def main():
 
     app.add_handler(conv_handler)
 
-    # Handler standalone para cancelar_ticket — captura DEPOIS do ConversationHandler.END
-    # Quando o ticket é criado, a conversa encerra (END). O botão de cancelar
-    # precisa ser capturado fora do ConversationHandler.
-    app.add_handler(CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"))
+    # /cancelar fora da conversa (quando já deu END)
+    app.add_handler(CommandHandler("cancelar", cancelar))
 
     # Start maintenance sync thread (syncs with API every 5s for vendas bot toggle)
     maint_thread = threading.Thread(target=maintenance_sync_loop, daemon=True)
