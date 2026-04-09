@@ -617,6 +617,7 @@ async def remove_cancel_button(context: ContextTypes.DEFAULT_TYPE):
 
 async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Usuário clicou no botão de cancelar suporte."""
+    from telegram.ext import ApplicationHandlerStop
     query = update.callback_query
     await query.answer()
 
@@ -625,7 +626,7 @@ async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT
         ticket_id = int(data.split("_")[-1])
     except:
         await query.edit_message_text("❌ Erro ao cancelar.", parse_mode="Markdown")
-        return
+        raise ApplicationHandlerStop
 
     chat_id = query.message.chat_id
     result = cancel_ticket_api(ticket_id, chat_id)
@@ -650,6 +651,7 @@ async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT
             "O ticket pode já ter sido resolvido ou expirou o prazo de 5 minutos.",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
+    raise ApplicationHandlerStop
 
 
 # ============================================
