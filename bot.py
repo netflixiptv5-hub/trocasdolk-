@@ -617,7 +617,6 @@ async def remove_cancel_button(context: ContextTypes.DEFAULT_TYPE):
 
 async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Usuário clicou no botão de cancelar suporte."""
-    from telegram.ext import ApplicationHandlerStop
     query = update.callback_query
     await query.answer()
 
@@ -626,7 +625,7 @@ async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT
         ticket_id = int(data.split("_")[-1])
     except:
         await query.edit_message_text("❌ Erro ao cancelar.", parse_mode="Markdown")
-        raise ApplicationHandlerStop
+        return ConversationHandler.END
 
     chat_id = query.message.chat_id
     result = cancel_ticket_api(ticket_id, chat_id)
@@ -651,7 +650,7 @@ async def cancelar_ticket_callback(update: Update, context: ContextTypes.DEFAULT
             "O ticket pode já ter sido resolvido ou expirou o prazo de 5 minutos.",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-    raise ApplicationHandlerStop
+    return ConversationHandler.END
 
 
 # ============================================
@@ -772,9 +771,6 @@ def main():
     )
     app.add_handler(spam_conv)
 
-    # Handler de cancelar ticket — group=-1 pra ter prioridade sobre ConversationHandlers
-    app.add_handler(CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"), group=-1)
-
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -782,19 +778,23 @@ def main():
         ],
         states={
             ESCOLHER_TIPO: [
+                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(tipo_escolhido, pattern="^(redefinir_senha|tela_caida|completa_caida)$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
             ],
             AGUARDANDO_EMAIL: [
+                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_email),
             ],
             AGUARDANDO_EMAIL_SENHA: [
+                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_email_senha),
             ],
         },
         fallbacks=[
+            CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
             CommandHandler("cancelar", cancelar),
             CommandHandler("start", start),
             CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
