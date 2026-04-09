@@ -803,6 +803,11 @@ def main():
 
     app.add_handler(conv_handler)
 
+    # Handler standalone para cancelar_ticket — captura DEPOIS do ConversationHandler.END
+    # Quando o ticket é criado, a conversa encerra (END). O botão de cancelar
+    # precisa ser capturado fora do ConversationHandler.
+    app.add_handler(CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"))
+
     # Start maintenance sync thread (syncs with API every 5s for vendas bot toggle)
     maint_thread = threading.Thread(target=maintenance_sync_loop, daemon=True)
     maint_thread.start()
