@@ -79,6 +79,12 @@ def format_date(dt):
         return ""
     if isinstance(dt, str):
         return dt
+    # Converter pra BRT antes de exibir
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(BRT)
+    else:
+        # Naive datetime do banco — assumir UTC (psycopg2 converte tz-aware pra UTC em TIMESTAMP WITHOUT TZ)
+        dt = dt.replace(tzinfo=timezone.utc).astimezone(BRT)
     return dt.strftime("%d/%m/%Y %H:%M")
 
 
@@ -450,7 +456,7 @@ def cancelar_ultimo_ticket(chat_id):
     """Cancela o ticket pendente mais recente do chat_id (criado nos últimos 5 min)."""
     conn = get_db()
     cur = conn.cursor()
-    cinco_min = datetime.now(BRT) - timedelta(minutes=5)
+    cinco_min = datetime.utcnow() - timedelta(minutes=5)
     cur.execute(
         "SELECT id FROM tickets WHERE telegram_chat_id = %s AND status = 'pendente' AND created_at >= %s ORDER BY id DESC LIMIT 1",
         (str(chat_id), cinco_min)
