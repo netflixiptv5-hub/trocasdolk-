@@ -78,7 +78,7 @@ def load_maintenance_from_db():
 
 
 # Conversation states
-ESCOLHER_TIPO, AGUARDANDO_EMAIL, AGUARDANDO_EMAIL_SENHA = range(3)
+ESCOLHER_TIPO, AGUARDANDO_EMAIL, AGUARDANDO_EMAIL_SENHA, TICKET_CRIADO = range(4)
 
 
 def create_ticket_api(data):
@@ -295,13 +295,14 @@ async def receber_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   "email": email, "senha_info": senha_info, "tipo_nome": "Redefinir Senha"},
             name=f"cancel_expire_{ticket_id}"
         )
+        return TICKET_CRIADO
     else:
         keyboard = [[InlineKeyboardButton("🔄 Tentar Novamente", callback_data="voltar_menu")]]
         await update.message.reply_text(
             "❌ Erro ao enviar solicitação. Tente novamente.",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-    return ConversationHandler.END
+        return ConversationHandler.END
 
 
 async def receber_email_senha(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -361,13 +362,14 @@ async def receber_email_senha(update: Update, context: ContextTypes.DEFAULT_TYPE
                   "email": email, "senha_info": f"\n🔑 Senha: `{senha}`", "tipo_nome": tipo_nome},
             name=f"cancel_expire_{ticket_id}"
         )
+        return TICKET_CRIADO
     else:
         keyboard = [[InlineKeyboardButton("🔄 Tentar Novamente", callback_data="voltar_menu")]]
         await update.message.reply_text(
             "❌ Erro ao enviar solicitação. Tente novamente.",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
         )
-    return ConversationHandler.END
+        return ConversationHandler.END
 
 
 async def voltar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -791,6 +793,10 @@ def main():
                 CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
                 CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_email_senha),
+            ],
+            TICKET_CRIADO: [
+                CallbackQueryHandler(cancelar_ticket_callback, pattern=r"^cancelar_ticket_\d+$"),
+                CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
             ],
         },
         fallbacks=[
