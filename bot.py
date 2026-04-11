@@ -392,6 +392,8 @@ async def manutencao_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_val = not current
     set_maintenance(new_val)
     
+    logger.warning(f"[MAINT] Admin {update.effective_user.id} alterou: {'ON' if new_val else 'OFF'}")
+    
     if new_val:
         status_text = (
             "🔧 *MANUTENÇÃO ATIVADA* ⛔\n\n"
@@ -407,6 +409,32 @@ async def manutencao_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Para ativar: /manutencao"
         )
     
+    await update.message.reply_text(status_text, parse_mode="Markdown")
+
+
+async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show current bot status - admin only."""
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+    
+    current = is_maintenance()
+    
+    # Checar também o que a API diz
+    api_val = "?"
+    try:
+        req = urllib.request.Request(f"{API_URL}/api/maintenance", method="GET")
+        resp = urllib.request.urlopen(req, timeout=3)
+        data = json.loads(resp.read())
+        api_val = "ON 🔧" if data.get("maintenance", False) else "OFF ✅"
+    except:
+        api_val = "❌ API indisponível"
+    
+    status_text = (
+        f"📊 *STATUS DO BOT*\n\n"
+        f"🤖 Estado local: {'🔧 MANUTENÇÃO' if current else '✅ ONLINE'}\n"
+        f"🌐 API (DB): {api_val}\n\n"
+        f"Para alternar: /manutencao"
+    )
     await update.message.reply_text(status_text, parse_mode="Markdown")
 
 
@@ -546,11 +574,11 @@ def send_backup_github(backup_data):
 
 
 def maintenance_sync_loop():
-    """Sync maintenance status from DB every 5 seconds.
+    """Sync maintenance status from DB every 30s.
     This allows the vendas bot to toggle maintenance via the API."""
     global _MAINTENANCE
-    time.sleep(10)
-    logger.info("[MAINT] Sync loop iniciado - checa API a cada 5s")
+    time.sleep(15)
+    logger.info("[MAINT] Sync loop iniciado - checa API a cada 30s")
     while True:
         try:
             req = urllib.request.Request(f"{API_URL}/api/maintenance", method="GET")
@@ -559,11 +587,12 @@ def maintenance_sync_loop():
             db_val = data.get("maintenance", False)
             # Only update if changed externally (not by local /manutencao)
             if db_val != _MAINTENANCE:
+                logger.warning(f"[MAINT] ⚠️ Estado mudou via API: {'ON' if db_val else 'OFF'} (era {'ON' if _MAINTENANCE else 'OFF'})")
                 _MAINTENANCE = db_val
-                logger.info(f"[MAINT] Sincronizado da API: {'ON' if db_val else 'OFF'}")
-        except:
-            pass
-        time.sleep(5)
+        except Exception as e:
+            # API fora do ar — NÃO muda o estado local
+            logger.warning(f"[MAINT] API indisponível, mantendo estado atual ({'ON' if _MAINTENANCE else 'OFF'}): {e}")
+        time.sleep(30)
 
 
 def backup_loop():
@@ -684,6 +713,7 @@ def main():
 
     # Admin commands
     app.add_handler(CommandHandler("manutencao", manutencao_cmd))
+    app.add_handler(CommandHandler("status", status_cmd))
 
     # Spam conversation (admin) — ANTES do conv principal
     spam_conv = ConversationHandler(
