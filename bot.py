@@ -755,6 +755,8 @@ def main():
         fallbacks=[
             CommandHandler("cancelar", cancelar),
             CommandHandler("start", start),
+            CommandHandler("status", status_cmd),
+            CommandHandler("manutencao", manutencao_cmd),
             CallbackQueryHandler(voltar_menu, pattern="^voltar_menu$"),
         ],
     )
